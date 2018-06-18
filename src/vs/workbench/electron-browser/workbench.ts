@@ -113,6 +113,8 @@ import { EditorService } from 'vs/workbench/services/editor/browser/editorServic
 import { IExtensionUrlHandler, ExtensionUrlHandler } from 'vs/platform/url/electron-browser/inactiveExtensionUrlHandler';
 import { WorkbenchThemeService } from 'vs/workbench/services/themes/electron-browser/workbenchThemeService';
 import { IWorkbenchThemeService } from 'vs/workbench/services/themes/common/workbenchThemeService';
+import { ToolbarPart } from 'vs/workbench/browser/parts/toolbar/toolbarPart';
+import { IToolbarService } from 'vs/platform/toolbar/common/toolbar';
 
 interface WorkbenchParams {
 	configuration: IWindowConfiguration;
@@ -142,6 +144,7 @@ const fontAliasingValues: FontAliasingOption[] = ['antialiased', 'none', 'auto']
 const Identifiers = {
 	WORKBENCH_CONTAINER: 'workbench.main.container',
 	TITLEBAR_PART: 'workbench.parts.titlebar',
+	TOOLBAR_PART: 'workbench.parts.toolbar',
 	ACTIVITYBAR_PART: 'workbench.parts.activitybar',
 	SIDEBAR_PART: 'workbench.parts.sidebar',
 	PANEL_PART: 'workbench.parts.panel',
@@ -177,6 +180,7 @@ export class Workbench extends Disposable implements IPartService {
 	private static readonly defaultPanelPositionStorageKey = 'workbench.panel.defaultLocation';
 	private static readonly sidebarPositionConfigurationKey = 'workbench.sideBar.location';
 	private static readonly statusbarVisibleConfigurationKey = 'workbench.statusBar.visible';
+	private static readonly toolbarVisibleConfigurationKey = 'workbench.toolbar.visible';
 	private static readonly activityBarVisibleConfigurationKey = 'workbench.activityBar.visible';
 	private static readonly closeWhenEmptyConfigurationKey = 'window.closeWhenEmpty';
 	private static readonly fontAliasingConfigurationKey = 'workbench.fontAliasing';
@@ -202,6 +206,7 @@ export class Workbench extends Disposable implements IPartService {
 	private workbenchLayout: WorkbenchLayout;
 
 	private titlebarPart: TitlebarPart;
+	private toolbarPart: ToolbarPart;
 	private activitybarPart: ActivitybarPart;
 	private sidebarPart: SidebarPart;
 	private panelPart: PanelPart;
@@ -211,6 +216,7 @@ export class Workbench extends Disposable implements IPartService {
 	private notificationsCenter: NotificationsCenter;
 	private notificationsToasts: NotificationsToasts;
 
+	private toolbarHidden: boolean;
 	private sideBarHidden: boolean;
 	private statusBarHidden: boolean;
 	private activityBarHidden: boolean;
@@ -393,6 +399,12 @@ export class Workbench extends Disposable implements IPartService {
 		this.titlebarPart = this.instantiationService.createInstance(TitlebarPart, Identifiers.TITLEBAR_PART);
 		this._register(toDisposable(() => this.titlebarPart.shutdown()));
 		serviceCollection.set(ITitleService, this.titlebarPart);
+
+		// Toolbar
+		this.toolbarPart = this.instantiationService.createInstance(ToolbarPart, Identifiers.TOOLBAR_PART);
+		this._register(toDisposable(() => this.toolbarPart.shutdown()));
+		serviceCollection.set(IToolbarService, this.toolbarPart);
+
 		// History
 		serviceCollection.set(IHistoryService, new SyncDescriptor(HistoryService));
 
@@ -830,6 +842,10 @@ export class Workbench extends Disposable implements IPartService {
 		const statusBarVisible = this.configurationService.getValue<string>(Workbench.statusbarVisibleConfigurationKey);
 		this.statusBarHidden = !statusBarVisible;
 
+		// Toolbar visibility
+		const toolbarVisible = this.configurationService.getValue<string>(Workbench.toolbarVisibleConfigurationKey);
+		this.toolbarHidden = !toolbarVisible;
+
 		// Activity bar visibility
 		const activityBarVisible = this.configurationService.getValue<string>(Workbench.activityBarVisibleConfigurationKey);
 		this.activityBarHidden = !activityBarVisible;
@@ -918,6 +934,7 @@ export class Workbench extends Disposable implements IPartService {
 			this.workbench.getHTMLElement(),
 			{
 				titlebar: this.titlebarPart,
+				toolbar: this.toolbarPart,
 				activitybar: this.activitybarPart,
 				editor: this.editorPart,
 				sidebar: this.sidebarPart,
@@ -960,6 +977,7 @@ export class Workbench extends Disposable implements IPartService {
 
 		// Create Parts
 		this.createTitlebarPart();
+		this.createToolbarPart();
 		this.createActivityBarPart();
 		this.createSidebarPart();
 		this.createEditorPart();
@@ -981,6 +999,17 @@ export class Workbench extends Disposable implements IPartService {
 		});
 
 		this.titlebarPart.create(titlebarContainer.getHTMLElement());
+	}
+
+
+	private createToolbarPart(): void {
+		const toolbarContainer = $(this.workbench).div({
+			'class': ['part', 'toolbar'],
+			id: Identifiers.TOOLBAR_PART,
+			role: 'contentinfo'
+		});
+
+		this.toolbarPart.create(toolbarContainer.getHTMLElement());
 	}
 
 	private createActivityBarPart(): void {
@@ -1119,6 +1148,9 @@ export class Workbench extends Disposable implements IPartService {
 			case Parts.TITLEBAR_PART:
 				container = this.titlebarPart.getContainer();
 				break;
+			case Parts.TOOLBAR_PART:
+				container = this.toolbarPart.getContainer();
+				break;
 			case Parts.ACTIVITYBAR_PART:
 				container = this.activitybarPart.getContainer();
 				break;
@@ -1143,6 +1175,8 @@ export class Workbench extends Disposable implements IPartService {
 		switch (part) {
 			case Parts.TITLEBAR_PART:
 				return this.getCustomTitleBarStyle() && !browser.isFullscreen();
+			case Parts.TOOLBAR_PART:
+				return !this.toolbarHidden;
 			case Parts.SIDEBAR_PART:
 				return !this.sideBarHidden;
 			case Parts.PANEL_PART:

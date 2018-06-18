@@ -48,6 +48,8 @@ import { ContextKeyExpr } from 'vs/platform/contextkey/common/contextkey';
 import { isMacintosh } from 'vs/base/common/platform';
 import { AllEditorsPicker, ActiveEditorGroupPicker } from 'vs/workbench/browser/parts/editor/editorPicker';
 import { Schemas } from 'vs/base/common/network';
+import { ToolbarItemDescriptor, IToolbarRegistry, ToolbarExtensions } from 'vs/workbench/browser/parts/toolbar/toolbar';
+import { FileNewButton } from 'vs/workbench/browser/parts/editor/editorToolbar';
 
 // Register String Editor
 Registry.as<IEditorRegistry>(EditorExtensions.Editors).registerEditor(
@@ -216,6 +218,11 @@ Registry.as<IEditorInputFactoryRegistry>(EditorInputExtensions.EditorInputFactor
 // Register Editor Status
 const statusBar = Registry.as<IStatusbarRegistry>(StatusExtensions.Statusbar);
 statusBar.registerStatusbarItem(new StatusbarItemDescriptor(EditorStatus, StatusbarAlignment.RIGHT, 100 /* towards the left of the right hand side */));
+
+// Register Editor Toolbar buttons
+const toolbarRegistry = Registry.as<IToolbarRegistry>(ToolbarExtensions.Toolbar);
+toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(FileNewButton, 1, true));
+
 
 // Register Status Actions
 const registry = Registry.as<IWorkbenchActionRegistry>(ActionExtensions.WorkbenchActions);

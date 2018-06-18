@@ -388,6 +388,39 @@ export const TITLE_BAR_BORDER = registerColor('titleBar.border', {
 	hc: contrastBorder
 }, nls.localize('titleBarBorder', "Title bar border color. Note that this color is currently only supported on macOS."));
 
+
+// < --- ToolBar --- >
+
+export const TOOLBAR_ACTIVE_FOREGROUND = registerColor('toolbar.activeForeground', {
+	dark: '#CCCCCC',
+	light: '#333333',
+	hc: '#FFFFFF'
+}, nls.localize('toolbarActiveForeground', "Toolbar foreground when the window is active. Note that this color is currently only supported on macOS."));
+
+export const TOOLBAR_INACTIVE_FOREGROUND = registerColor('toolbar.inactiveForeground', {
+	dark: transparent(TOOLBAR_ACTIVE_FOREGROUND, 0.6),
+	light: transparent(TOOLBAR_ACTIVE_FOREGROUND, 0.6),
+	hc: null
+}, nls.localize('toolbarInactiveForeground', "Toolbar foreground when the window is inactive. Note that this color is currently only supported on macOS."));
+
+export const TOOLBAR_ACTIVE_BACKGROUND = registerColor('toolbar.activeBackground', {
+	dark: '#3C3C3C',
+	light: '#DDDDDD',
+	hc: '#000000'
+}, nls.localize('toolbarActiveBackground', "Toolbar background when the window is active. Note that this color is currently only supported on macOS."));
+
+export const TOOLBAR_INACTIVE_BACKGROUND = registerColor('toolbar.inactiveBackground', {
+	dark: transparent(TITLE_BAR_ACTIVE_BACKGROUND, 0.6),
+	light: transparent(TITLE_BAR_ACTIVE_BACKGROUND, 0.6),
+	hc: null
+}, nls.localize('toolbarInactiveBackground', "Toolbar background when the window is inactive. Note that this color is currently only supported on macOS."));
+
+export const TOOLBAR_BORDER = registerColor('toolbar.border', {
+	dark: null,
+	light: null,
+	hc: contrastBorder
+}, nls.localize('toolbarBorder', "Toolbar border color. Note that this color is currently only supported on macOS."));
+
 // < --- Notifications --- >
 
 export const NOTIFICATIONS_CENTER_BORDER = registerColor('notificationCenter.border', {

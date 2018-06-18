@@ -278,6 +278,11 @@ configurationRegistry.registerConfiguration({
 			'default': true,
 			'description': nls.localize('statusBarVisibility', "Controls the visibility of the status bar at the bottom of the workbench.")
 		},
+		'workbench.toolbar.visible': {
+			'type': 'boolean',
+			'default': true,
+			'description': nls.localize('toolbarVisibility', "Controls the visibility of the toolbar at the top of the workbench.")
+		},
 		'workbench.activityBar.visible': {
 			'type': 'boolean',
 			'default': true,
