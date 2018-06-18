@@ -49,7 +49,7 @@ import { isMacintosh } from 'vs/base/common/platform';
 import { AllEditorsPicker, ActiveEditorGroupPicker } from 'vs/workbench/browser/parts/editor/editorPicker';
 import { Schemas } from 'vs/base/common/network';
 import { ToolbarItemDescriptor, IToolbarRegistry, ToolbarExtensions } from 'vs/workbench/browser/parts/toolbar/toolbar';
-import { FileNewButton } from 'vs/workbench/browser/parts/editor/editorToolbar';
+import { GenericButton } from 'vs/workbench/browser/parts/editor/editorToolbar';
 
 // Register String Editor
 Registry.as<IEditorRegistry>(EditorExtensions.Editors).registerEditor(
@@ -221,8 +221,12 @@ statusBar.registerStatusbarItem(new StatusbarItemDescriptor(EditorStatus, Status
 
 // Register Editor Toolbar buttons
 const toolbarRegistry = Registry.as<IToolbarRegistry>(ToolbarExtensions.Toolbar);
-toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(FileNewButton, 1, true));
-
+toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(GenericButton,
+	'workbench.action.files.newUntitledFile', '.new-file', nls.localize('newFile', "New File"), 1, true));
+toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(GenericButton,
+	'workbench.action.files.save', '.save', nls.localize('save', "Save"), 2, false));
+toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(GenericButton,
+	'saveAll', '.save-all', nls.localize('saveAll', "Save All"), 3, false));
 
 // Register Status Actions
 const registry = Registry.as<IWorkbenchActionRegistry>(ActionExtensions.WorkbenchActions);

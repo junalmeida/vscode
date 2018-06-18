@@ -6,8 +6,8 @@
 
 import { Registry } from 'vs/platform/registry/common/platform';
 import { IDisposable } from 'vs/base/common/lifecycle';
-import { SyncDescriptor0, createSyncDescriptor } from 'vs/platform/instantiation/common/descriptors';
-import { IConstructorSignature0 } from 'vs/platform/instantiation/common/instantiation';
+import { createSyncDescriptor, SyncDescriptor0 } from 'vs/platform/instantiation/common/descriptors';
+import { IConstructorSignature4 } from 'vs/platform/instantiation/common/instantiation';
 
 export interface IToolbarItem {
 	render(element: HTMLElement): IDisposable;
@@ -17,12 +17,12 @@ export class ToolbarItemDescriptor {
 
 	public syncDescriptor: SyncDescriptor0<IToolbarItem>;
 	public priority: number;
-	public separator: boolean;
 
-	constructor(ctor: IConstructorSignature0<IToolbarItem>, priority?: number, separator?: boolean) {
-		this.syncDescriptor = createSyncDescriptor(ctor);
-		this.priority = priority || 0;
-		this.separator = separator || false;
+	constructor(ctor: IConstructorSignature4<string, string, string, boolean, IToolbarItem>,
+		command: string, iconName: string, title: string, priority?: number, separator?: boolean) {
+		this.syncDescriptor = createSyncDescriptor(ctor,
+			command, iconName, title, separator);
+		this.priority = priority;
 	}
 }
 

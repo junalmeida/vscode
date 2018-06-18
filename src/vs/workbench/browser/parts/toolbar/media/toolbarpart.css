@@ -24,8 +24,6 @@
 .monaco-workbench>.part.toolbar>a {
 	cursor: pointer;
 	background-color: transparent;
-	display: inline-block;
-	min-width: 22px;
 	text-align: center;
 }
 
@@ -44,4 +42,29 @@
 	-moz-transform: scale(1.272019649, 1.272019649);
 	-o-transform: scale(1.272019649, 1.272019649);
 	transform: scale(1.272019649, 1.272019649);
+}
+
+.monaco-workbench>.part.toolbar>a>span {
+	display: inline-block;
+	min-width: 22px;
+	min-height: 22px;
+	background-position: center center;
+}
+
+.monaco-workbench>.part.toolbar>a>.save-all {
+	background: url('../../../../parts/files/electron-browser/media/saveall.svg') center center no-repeat;
+}
+
+.vs-dark .monaco-workbench>.part.toolbar>a>.save-all,
+.hc-black .monaco-workbench>.part.toolbar>a>.save-all {
+	background: url('../../../../parts/files/electron-browser/media/saveall_inverse.svg') center center no-repeat;
+}
+
+.monaco-workbench>.part.toolbar>a>.new-file {
+	background: url('../../../../parts/files/electron-browser/media/AddFile.svg') center center no-repeat;
+}
+
+.vs-dark .monaco-workbench>.part.toolbar>a>.new-file,
+.hc-black .monaco-workbench>.part.toolbar>a>.new-file {
+	background: url('../../../../parts/files/electron-browser/media/AddFile_inverse.svg') center center no-repeat;
 }

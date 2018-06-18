@@ -127,7 +127,7 @@ export class ToolbarPart extends Part implements IToolbarService {
 		// Fill in initial items that were contributed from the registry
 		const registry = Registry.as<IToolbarRegistry>(ToolbarExtensions.Toolbar);
 
-		const descriptors = registry.items.sort((a, b) => b.priority - a.priority); // right first because they float
+		const descriptors = registry.items;//.sort((a, b) => b.priority - a.priority); // right first because they float
 
 		this.toUnbind.push(...descriptors.map(descriptor => {
 			const item = this.instantiationService.createInstance(descriptor.syncDescriptor);
