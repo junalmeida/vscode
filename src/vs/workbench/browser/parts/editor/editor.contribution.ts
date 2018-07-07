@@ -222,7 +222,7 @@ statusBar.registerStatusbarItem(new StatusbarItemDescriptor(EditorStatus, Status
 // Register Editor Toolbar buttons
 const toolbarRegistry = Registry.as<IToolbarRegistry>(ToolbarExtensions.Toolbar);
 toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(GenericButton,
-	'workbench.action.files.newUntitledFile', '.new-file', nls.localize('newFile', "New File"), 1, true));
+	'workbench.action.files.newUntitledFile', '.new-file', nls.localize('newFile', "New File"), 1, false));
 toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(GenericButton,
 	'workbench.action.files.save', '.save', nls.localize('save', "Save"), 2, false));
 toolbarRegistry.registerToolbarItem(new ToolbarItemDescriptor(GenericButton,

@@ -21,6 +21,14 @@
 	display: flex;
 }
 
+.monaco-workbench .part.toolbar .drag-area {
+	cursor: default;
+	height: 32px;
+	width: 16px;
+	background: url('drag.svg') center center no-repeat;
+	background-size: 16px 16px;
+}
+
 .monaco-workbench>.part.toolbar>a {
 	cursor: pointer;
 	background-color: transparent;
@@ -44,27 +52,32 @@
 	transform: scale(1.272019649, 1.272019649);
 }
 
-.monaco-workbench>.part.toolbar>a>span {
-	display: inline-block;
+.monaco-workbench>.part.toolbar>a>i {
+	display: block;
 	min-width: 22px;
-	min-height: 22px;
+	min-height: 32px;
 	background-position: center center;
+	background-repeat: no-repeat;
+}
+
+.monaco-workbench>.part.toolbar>a>.save {
+	background-image: url(VSO_Save_16x.png);
 }
 
 .monaco-workbench>.part.toolbar>a>.save-all {
-	background: url('../../../../parts/files/electron-browser/media/saveall.svg') center center no-repeat;
+	background-image: url(VSO_SaveAll_16x.png);
 }
 
 .vs-dark .monaco-workbench>.part.toolbar>a>.save-all,
 .hc-black .monaco-workbench>.part.toolbar>a>.save-all {
-	background: url('../../../../parts/files/electron-browser/media/saveall_inverse.svg') center center no-repeat;
+	background-image: url(VSO_SaveAll_16x.png);
 }
 
 .monaco-workbench>.part.toolbar>a>.new-file {
-	background: url('../../../../parts/files/electron-browser/media/AddFile.svg') center center no-repeat;
+	background-image: url(VSO_NewFile_16x.png);
 }
 
 .vs-dark .monaco-workbench>.part.toolbar>a>.new-file,
 .hc-black .monaco-workbench>.part.toolbar>a>.new-file {
-	background: url('../../../../parts/files/electron-browser/media/AddFile_inverse.svg') center center no-repeat;
+	background-image: url(VSO_NewFile_16x.png);
 }

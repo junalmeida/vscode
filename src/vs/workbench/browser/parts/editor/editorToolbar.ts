@@ -43,10 +43,10 @@ export class GenericButton extends Themable implements IToolbarItem {
 		if (this.separator) {
 			addClass(this.container, 'break');
 		}
-		$(element).setProperty('title', this.title);
+		$(element).attr('title', this.title);
 
 		if (this.iconName.substr(0, 1) === '.') {
-			element.innerHTML = `<span class="${this.iconName.substr(1)}"></span>`;
+			element.innerHTML = `<i class="${this.iconName.substr(1)}"></i>`;
 		}
 		else {
 			this.icon = new OcticonLabel(element);

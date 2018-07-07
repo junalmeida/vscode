@@ -43,6 +43,7 @@ export class ToolbarPart extends Part implements IToolbarService {
 	*/
 
 	private toolContainer: Builder;
+	private dragArea: Builder;
 	private initialToolFontSize: number;
 
 	private isInactive: boolean;
@@ -113,7 +114,10 @@ export class ToolbarPart extends Part implements IToolbarService {
 		this.toolContainer = $(parent);
 		addClass(parent, 'monaco-action-bar');
 
-		// Since the tool area is used to drag the window, we do not want to steal focus from the
+		this.dragArea = $().div().addClass('drag-area');
+		this.toolContainer.append(this.dragArea);
+
+		// We do not want to steal focus from the
 		// currently active element. So we restore focus after a timeout back to where it was.
 		this.toolContainer.on([EventType.MOUSE_DOWN], () => {
 			const active = document.activeElement;
