@@ -59,7 +59,7 @@ export class GenericButton extends Themable implements IToolbarItem {
 				EventHelper.stop(e, true);
 			}
 			this.executeCommand(this.command);
-		}, this.toUnbind, true);
+		}, this._toDispose, true);
 
 		return {
 			dispose: () => {

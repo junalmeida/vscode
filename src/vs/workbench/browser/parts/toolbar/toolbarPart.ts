@@ -72,13 +72,13 @@ export class ToolbarPart extends Part implements IToolbarService {
 
 	private registerListeners(): void {
 
-		this.toUnbind.push(addDisposableListener(window, EventType.BLUR, () => this.onBlur()));
-		this.toUnbind.push(addDisposableListener(window, EventType.FOCUS, () => this.onFocus()));
-		this.toUnbind.push(this.configurationService.onDidChangeConfiguration(e => this.onConfigurationChanged(e)));
-		this.toUnbind.push(this.editorService.onDidActiveEditorChange(() => this.onActiveEditorChange()));
-		this.toUnbind.push(this.contextService.onDidChangeWorkspaceFolders(() => this.onActiveEditorChange()));
-		this.toUnbind.push(this.contextService.onDidChangeWorkbenchState(() => this.onActiveEditorChange()));
-		this.toUnbind.push(this.contextService.onDidChangeWorkspaceName(() => this.onActiveEditorChange()));
+		this._toDispose.push(addDisposableListener(window, EventType.BLUR, () => this.onBlur()));
+		this._toDispose.push(addDisposableListener(window, EventType.FOCUS, () => this.onFocus()));
+		this._toDispose.push(this.configurationService.onDidChangeConfiguration(e => this.onConfigurationChanged(e)));
+		this._toDispose.push(this.editorService.onDidActiveEditorChange(() => this.onActiveEditorChange()));
+		this._toDispose.push(this.contextService.onDidChangeWorkspaceFolders(() => this.onActiveEditorChange()));
+		this._toDispose.push(this.contextService.onDidChangeWorkbenchState(() => this.onActiveEditorChange()));
+		this._toDispose.push(this.contextService.onDidChangeWorkspaceName(() => this.onActiveEditorChange()));
 
 	}
 
@@ -133,7 +133,7 @@ export class ToolbarPart extends Part implements IToolbarService {
 
 		const descriptors = registry.items;//.sort((a, b) => b.priority - a.priority); // right first because they float
 
-		this.toUnbind.push(...descriptors.map(descriptor => {
+		this._toDispose.push(...descriptors.map(descriptor => {
 			const item = this.instantiationService.createInstance(descriptor.syncDescriptor);
 			const el = this.doCreateToolbarItem(descriptor.priority);
 
