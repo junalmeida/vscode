@@ -83,7 +83,7 @@ export class ExtHostFileSystem implements ExtHostFileSystemShape {
 		extHostLanguageFeatures.registerDocumentLinkProvider('*', this._linkProvider);
 	}
 
-	registerFileSystemProvider(scheme: string, provider: vscode.FileSystemProvider, options: { isCaseSensitive?: boolean } = {}) {
+	registerFileSystemProvider(scheme: string, provider: vscode.FileSystemProvider, options: { isCaseSensitive?: boolean, isReadonly?: boolean } = {}) {
 
 		if (this._usedSchemes.has(scheme)) {
 			throw new Error(`a provider for the scheme '${scheme}' is already registered`);
@@ -97,6 +97,9 @@ export class ExtHostFileSystem implements ExtHostFileSystemShape {
 		let capabilites = files.FileSystemProviderCapabilities.FileReadWrite;
 		if (options.isCaseSensitive) {
 			capabilites += files.FileSystemProviderCapabilities.PathCaseSensitive;
+		}
+		if (options.isReadonly) {
+			capabilites += files.FileSystemProviderCapabilities.Readonly;
 		}
 		if (typeof provider.copy === 'function') {
 			capabilites += files.FileSystemProviderCapabilities.FileFolderCopy;
@@ -165,8 +168,8 @@ export class ExtHostFileSystem implements ExtHostFileSystemShape {
 		return asWinJsPromise(() => this._fsProvider.get(handle).writeFile(URI.revive(resource), Buffer.from(base64Content, 'base64'), opts));
 	}
 
-	$delete(handle: number, resource: UriComponents): TPromise<void, any> {
-		return asWinJsPromise(() => this._fsProvider.get(handle).delete(URI.revive(resource), { recursive: true }));
+	$delete(handle: number, resource: UriComponents, opts: files.FileDeleteOptions): TPromise<void, any> {
+		return asWinJsPromise(() => this._fsProvider.get(handle).delete(URI.revive(resource), opts));
 	}
 
 	$rename(handle: number, oldUri: UriComponents, newUri: UriComponents, opts: files.FileOverwriteOptions): TPromise<void, any> {

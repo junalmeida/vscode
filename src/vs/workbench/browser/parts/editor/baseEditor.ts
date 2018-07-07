@@ -33,14 +33,14 @@ import { DEFAULT_EDITOR_MIN_DIMENSIONS, DEFAULT_EDITOR_MAX_DIMENSIONS } from 'vs
  */
 export abstract class BaseEditor extends Panel implements IEditor {
 
+	private static readonly EDITOR_MEMENTOS: Map<string, EditorMemento<any>> = new Map<string, EditorMemento<any>>();
+
 	readonly minimumWidth = DEFAULT_EDITOR_MIN_DIMENSIONS.width;
 	readonly maximumWidth = DEFAULT_EDITOR_MAX_DIMENSIONS.width;
 	readonly minimumHeight = DEFAULT_EDITOR_MIN_DIMENSIONS.height;
 	readonly maximumHeight = DEFAULT_EDITOR_MAX_DIMENSIONS.height;
 
 	readonly onDidSizeConstraintsChange: Event<{ width: number; height: number; }> = Event.None;
-
-	private static readonly EDITOR_MEMENTOS: Map<string, EditorMemento<any>> = new Map<string, EditorMemento<any>>();
 
 	protected _input: EditorInput;
 
@@ -143,13 +143,6 @@ export abstract class BaseEditor extends Panel implements IEditor {
 		this._group = group;
 	}
 
-	/**
-	 * Subclasses can set this to false if it does not make sense to center editor input.
-	 */
-	supportsCenteredLayout(): boolean {
-		return true;
-	}
-
 	protected getEditorMemento<T>(storageService: IStorageService, editorGroupService: IEditorGroupsService, key: string, limit: number = 10): IEditorMemento<T> {
 		const mementoKey = `${this.getId()}${key}`;
 
@@ -178,7 +171,6 @@ export abstract class BaseEditor extends Panel implements IEditor {
 		this._input = null;
 		this._options = null;
 
-		// Super Dispose
 		super.dispose();
 	}
 }

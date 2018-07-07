@@ -9,7 +9,6 @@ import 'vs/css!./media/symbol-icons';
 import { IMouseEvent } from 'vs/base/browser/mouseEvent';
 import { HighlightedLabel } from 'vs/base/browser/ui/highlightedlabel/highlightedLabel';
 import { values } from 'vs/base/common/collections';
-import { onUnexpectedError } from 'vs/base/common/errors';
 import { createMatches } from 'vs/base/common/filters';
 import { TPromise } from 'vs/base/common/winjs.base';
 import { IDataSource, IFilter, IRenderer, ISorter, ITree } from 'vs/base/parts/tree/browser/tree';
@@ -49,7 +48,7 @@ export class OutlineItemComparator implements ISorter {
 					return a.symbol.name.localeCompare(b.symbol.name);
 				case OutlineItemCompareType.ByPosition:
 				default:
-					return Range.compareRangesUsingStarts(a.symbol.fullRange, b.symbol.fullRange);
+					return Range.compareRangesUsingStarts(a.symbol.range, b.symbol.range);
 			}
 		}
 
@@ -97,14 +96,14 @@ export class OutlineDataSource implements IDataSource {
 		return false;
 	}
 
-	async getChildren(tree: ITree, element: TreeElement): TPromise<TreeElement[]> {
+	getChildren(tree: ITree, element: TreeElement): TPromise<TreeElement[]> {
 		let res = values(element.children);
 		// console.log(element.id + ' with children ' + res.length);
-		return res;
+		return TPromise.wrap(res);
 	}
 
-	async getParent(tree: ITree, element: TreeElement | any): TPromise<TreeElement> {
-		return element && element.parent;
+	getParent(tree: ITree, element: TreeElement | any): TPromise<TreeElement> {
+		return TPromise.wrap(element && element.parent);
 	}
 
 	shouldAutoexpand(tree: ITree, element: TreeElement): boolean {
@@ -182,11 +181,12 @@ export class OutlineRenderer implements IRenderer {
 		}
 
 		const { count, topSev } = element.marker;
-		const color = this._themeService.getTheme().getColor(topSev === MarkerSeverity.Error ? listErrorForeground : listWarningForeground).toString();
+		const color = this._themeService.getTheme().getColor(topSev === MarkerSeverity.Error ? listErrorForeground : listWarningForeground);
+		const cssColor = color ? color.toString() : 'inherit';
 
 		// color of the label
 		if (this.renderProblemColors) {
-			template.labelContainer.style.setProperty('--outline-element-color', color);
+			template.labelContainer.style.setProperty('--outline-element-color', cssColor);
 		} else {
 			template.labelContainer.style.removeProperty('--outline-element-color');
 		}
@@ -200,14 +200,14 @@ export class OutlineRenderer implements IRenderer {
 			dom.removeClass(template.decoration, 'bubble');
 			template.decoration.innerText = count < 10 ? count.toString() : '+9';
 			template.decoration.title = count === 1 ? localize('1.problem', "1 problem in this element") : localize('N.problem', "{0} problems in this element", count);
-			template.decoration.style.setProperty('--outline-element-color', color);
+			template.decoration.style.setProperty('--outline-element-color', cssColor);
 
 		} else {
 			dom.show(template.decoration);
 			dom.addClass(template.decoration, 'bubble');
 			template.decoration.innerText = '\uf052';
 			template.decoration.title = localize('deep.problem', "Contains elements with problems");
-			template.decoration.style.setProperty('--outline-element-color', color);
+			template.decoration.style.setProperty('--outline-element-color', cssColor);
 		}
 	}
 
@@ -281,7 +281,7 @@ export class OutlineTreeState {
 		return { selected, focused, expanded };
 	}
 
-	static async restore(tree: ITree, state: OutlineTreeState): TPromise<void> {
+	static async restore(tree: ITree, state: OutlineTreeState, eventPayload: any): Promise<void> {
 		let model = <OutlineModel>tree.getInput();
 		if (!state || !(model instanceof OutlineModel)) {
 			return TPromise.as(undefined);
@@ -301,41 +301,17 @@ export class OutlineTreeState {
 		// selection & focus
 		let selected = model.getItemById(state.selected);
 		let focused = model.getItemById(state.focused);
-		tree.setSelection([selected]);
-		tree.setFocus(focused);
+		tree.setSelection([selected], eventPayload);
+		tree.setFocus(focused, eventPayload);
 	}
 }
 
 export class OutlineController extends WorkbenchTreeController {
-
-	protected onLeftClick(tree: ITree, element: any, event: IMouseEvent, origin: string = 'mouse'): boolean {
-
-		const payload = { origin: origin, originalEvent: event };
-
-		if (tree.getInput() === element) {
-			tree.clearFocus(payload);
-			tree.clearSelection(payload);
+	protected shouldToggleExpansion(element: any, event: IMouseEvent, origin: string): boolean {
+		if (element instanceof OutlineElement) {
+			return this.isClickOnTwistie(event);
 		} else {
-			const isMouseDown = event && event.browserEvent && event.browserEvent.type === 'mousedown';
-			if (!isMouseDown) {
-				event.preventDefault(); // we cannot preventDefault onMouseDown because this would break DND otherwise
-			}
-			event.stopPropagation();
-
-			tree.domFocus();
-			tree.setSelection([element], payload);
-			tree.setFocus(element, payload);
-
-			const didClickElement = element instanceof OutlineElement && !this.isClickOnTwistie(event);
-
-			if (!didClickElement) {
-				if (tree.isExpanded(element)) {
-					tree.collapse(element).then(null, onUnexpectedError);
-				} else {
-					tree.expand(element).then(null, onUnexpectedError);
-				}
-			}
+			return super.shouldToggleExpansion(element, event, origin);
 		}
-		return true;
 	}
 }

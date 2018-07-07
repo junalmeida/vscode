@@ -25,7 +25,6 @@ interface IDropOperation {
 class DropOverlay extends Themable {
 
 	private static OVERLAY_ID = 'monaco-workbench-editor-drop-overlay';
-	private static EDGE_DISTANCE_THRESHOLD = 0.3;
 
 	private container: HTMLElement;
 	private overlay: HTMLElement;
@@ -58,8 +57,14 @@ class DropOverlay extends Themable {
 		this.container = document.createElement('div');
 		this.container.id = DropOverlay.OVERLAY_ID;
 		this.container.style.top = `${overlayOffsetHeight}px`;
+
+		// Parent
 		this.groupView.element.appendChild(this.container);
-		this._register(toDisposable(() => this.groupView.element.removeChild(this.container)));
+		addClass(this.groupView.element, 'dragged-over');
+		this._register(toDisposable(() => {
+			this.groupView.element.removeChild(this.container);
+			removeClass(this.groupView.element, 'dragged-over');
+		}));
 
 		// Overlay
 		this.overlay = document.createElement('div');
@@ -112,7 +117,7 @@ class DropOverlay extends Themable {
 				}
 
 				// Position overlay
-				this.positionOverlay(e.offsetX, e.offsetY);
+				this.positionOverlay(e.offsetX, e.offsetY, isDraggingGroup);
 			},
 
 			onDragLeave: e => this.dispose(),
@@ -249,50 +254,112 @@ class DropOverlay extends Themable {
 		return (e.ctrlKey && !isMacintosh) || (e.altKey && isMacintosh);
 	}
 
-	private positionOverlay(mousePosX: number, mousePosY: number): void {
-		const groupViewWidth = this.groupView.element.clientWidth;
-		const groupViewHeight = this.groupView.element.clientHeight;
+	private positionOverlay(mousePosX: number, mousePosY: number, isDraggingGroup: boolean): void {
+		const preferSplitVertically = this.accessor.partOptions.openSideBySideDirection === 'right';
 
-		const topEdgeDistance = mousePosY;
-		const leftEdgeDistance = mousePosX;
-		const rightEdgeDistance = groupViewWidth - mousePosX;
-		const bottomEdgeDistance = groupViewHeight - mousePosY;
+		const editorControlWidth = this.groupView.element.clientWidth;
+		const editorControlHeight = this.groupView.element.clientHeight - this.getOverlayOffsetHeight();
 
-		const edgeWidthThreshold = groupViewWidth * DropOverlay.EDGE_DISTANCE_THRESHOLD;
-		const edgeHeightThreshold = groupViewHeight * DropOverlay.EDGE_DISTANCE_THRESHOLD;
-
-		// Find new split location given edge distance and thresholds
-		let splitDirection: GroupDirection;
-		switch (Math.min(topEdgeDistance, leftEdgeDistance, rightEdgeDistance, bottomEdgeDistance)) {
-			case topEdgeDistance:
-				if (topEdgeDistance < edgeHeightThreshold) {
-					splitDirection = GroupDirection.UP;
-					this.doPositionOverlay({ top: '0', left: '0', width: '100%', height: '50%' });
-				}
-				break;
-			case bottomEdgeDistance:
-				if (bottomEdgeDistance < edgeHeightThreshold) {
-					splitDirection = GroupDirection.DOWN;
-					this.doPositionOverlay({ top: '50%', left: '0', width: '100%', height: '50%' });
-				}
-				break;
-			case leftEdgeDistance:
-				if (leftEdgeDistance < edgeWidthThreshold) {
-					splitDirection = GroupDirection.LEFT;
-					this.doPositionOverlay({ top: '0', left: '0', width: '50%', height: '100%' });
-				}
-				break;
-			case rightEdgeDistance:
-				if (rightEdgeDistance < edgeWidthThreshold) {
-					splitDirection = GroupDirection.RIGHT;
-					this.doPositionOverlay({ top: '0', left: '50%', width: '50%', height: '100%' });
-				}
-				break;
+		let edgeWidthThresholdFactor: number;
+		if (isDraggingGroup) {
+			edgeWidthThresholdFactor = preferSplitVertically ? 0.3 : 0.1; // give larger threshold when dragging group depending on preferred split direction
+		} else {
+			edgeWidthThresholdFactor = 0.1; // 10% threshold to split if dragging editors
 		}
 
-		// No split, position overlay over entire group
-		if (typeof splitDirection !== 'number') {
-			this.doPositionOverlay({ top: '0', left: '0', width: '100%', height: '100%' });
+		let edgeHeightThresholdFactor: number;
+		if (isDraggingGroup) {
+			edgeHeightThresholdFactor = preferSplitVertically ? 0.1 : 0.3; // give larger threshold when dragging group depending on preferred split direction
+		} else {
+			edgeHeightThresholdFactor = 0.1; // 10% threshold to split if dragging editors
+		}
+
+		const edgeWidthThreshold = editorControlWidth * edgeWidthThresholdFactor;
+		const edgeHeightThreshold = editorControlHeight * edgeHeightThresholdFactor;
+
+		const splitWidthThreshold = editorControlWidth / 3;		// offer to split left/right at 33%
+		const splitHeightThreshold = editorControlHeight / 3;	// offer to split up/down at 33%
+
+		// Enable to debug the drop threshold square
+		// let child = this.overlay.children.item(0) as HTMLElement || this.overlay.appendChild(document.createElement('div'));
+		// child.style.backgroundColor = 'red';
+		// child.style.position = 'absolute';
+		// child.style.width = (groupViewWidth - (2 * edgeWidthThreshold)) + 'px';
+		// child.style.height = (groupViewHeight - (2 * edgeHeightThreshold)) + 'px';
+		// child.style.left = edgeWidthThreshold + 'px';
+		// child.style.top = edgeHeightThreshold + 'px';
+
+		// No split if mouse is above certain threshold in the center of the view
+		let splitDirection: GroupDirection;
+		if (
+			mousePosX > edgeWidthThreshold && mousePosX < editorControlWidth - edgeWidthThreshold &&
+			mousePosY > edgeHeightThreshold && mousePosY < editorControlHeight - edgeHeightThreshold
+		) {
+			splitDirection = void 0;
+		}
+
+		// Offer to split otherwise
+		else {
+
+			// User prefers to split vertically: offer a larger hitzone
+			// for this direction like so:
+			// ----------------------------------------------
+			// |		|		SPLIT UP		|			|
+			// | SPLIT 	|-----------------------|	SPLIT	|
+			// |		|		  MERGE			|			|
+			// | LEFT	|-----------------------|	RIGHT	|
+			// |		|		SPLIT DOWN		|			|
+			// ----------------------------------------------
+			if (preferSplitVertically) {
+				if (mousePosX < splitWidthThreshold) {
+					splitDirection = GroupDirection.LEFT;
+				} else if (mousePosX > splitWidthThreshold * 2) {
+					splitDirection = GroupDirection.RIGHT;
+				} else if (mousePosY < editorControlHeight / 2) {
+					splitDirection = GroupDirection.UP;
+				} else {
+					splitDirection = GroupDirection.DOWN;
+				}
+			}
+
+			// User prefers to split horizontally: offer a larger hitzone
+			// for this direction like so:
+			// ----------------------------------------------
+			// |				SPLIT UP					|
+			// |--------------------------------------------|
+			// |  SPLIT LEFT  |	   MERGE	|  SPLIT RIGHT  |
+			// |--------------------------------------------|
+			// |				SPLIT DOWN					|
+			// ----------------------------------------------
+			else {
+				if (mousePosY < splitHeightThreshold) {
+					splitDirection = GroupDirection.UP;
+				} else if (mousePosY > splitHeightThreshold * 2) {
+					splitDirection = GroupDirection.DOWN;
+				} else if (mousePosX < editorControlWidth / 2) {
+					splitDirection = GroupDirection.LEFT;
+				} else {
+					splitDirection = GroupDirection.RIGHT;
+				}
+			}
+		}
+
+		// Draw overlay based on split direction
+		switch (splitDirection) {
+			case GroupDirection.UP:
+				this.doPositionOverlay({ top: '0', left: '0', width: '100%', height: '50%' });
+				break;
+			case GroupDirection.DOWN:
+				this.doPositionOverlay({ top: '50%', left: '0', width: '100%', height: '50%' });
+				break;
+			case GroupDirection.LEFT:
+				this.doPositionOverlay({ top: '0', left: '0', width: '50%', height: '100%' });
+				break;
+			case GroupDirection.RIGHT:
+				this.doPositionOverlay({ top: '0', left: '50%', width: '50%', height: '100%' });
+				break;
+			default:
+				this.doPositionOverlay({ top: '0', left: '0', width: '100%', height: '100%' });
 		}
 
 		// Make sure the overlay is visible now
@@ -306,16 +373,20 @@ class DropOverlay extends Themable {
 	}
 
 	private doPositionOverlay(options: { top: string, left: string, width: string, height: string }): void {
+
+		// Container
+		const offsetHeight = this.getOverlayOffsetHeight();
+		if (offsetHeight) {
+			this.container.style.height = `calc(100% - ${offsetHeight}px)`;
+		} else {
+			this.container.style.height = '100%';
+		}
+
+		// Overlay
 		this.overlay.style.top = options.top;
 		this.overlay.style.left = options.left;
 		this.overlay.style.width = options.width;
-
-		const offsetHeight = this.getOverlayOffsetHeight();
-		if (offsetHeight) {
-			this.overlay.style.height = `calc(${options.height} - ${offsetHeight}px)`;
-		} else {
-			this.overlay.style.height = options.height;
-		}
+		this.overlay.style.height = options.height;
 	}
 
 	private getOverlayOffsetHeight(): number {

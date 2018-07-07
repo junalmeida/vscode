@@ -13,17 +13,17 @@ import URI from 'vs/base/common/uri';
 import product from 'vs/platform/node/product';
 import { IWindowsService, OpenContext, INativeOpenDialogOptions, IEnterWorkspaceResult, IMessageBoxResult, IDevToolsOptions } from 'vs/platform/windows/common/windows';
 import { IEnvironmentService, ParsedArgs } from 'vs/platform/environment/common/environment';
-import { shell, crashReporter, app, Menu, clipboard } from 'electron';
+import { shell, crashReporter, app, Menu, clipboard, BrowserWindow } from 'electron';
 import { Event, fromNodeEventEmitter, mapEvent, filterEvent, anyEvent } from 'vs/base/common/event';
 import { IURLService, IURLHandler } from 'vs/platform/url/common/url';
 import { ILifecycleService } from 'vs/platform/lifecycle/electron-main/lifecycleMain';
 import { IWindowsMainService, ISharedProcess } from 'vs/platform/windows/electron-main/windows';
 import { IHistoryMainService, IRecentlyOpened } from 'vs/platform/history/common/history';
 import { IWorkspaceIdentifier, IWorkspaceFolderCreationData } from 'vs/platform/workspaces/common/workspaces';
-import { ICommandAction } from 'vs/platform/actions/common/actions';
+import { ISerializableCommandAction } from 'vs/platform/actions/common/actions';
 import { Schemas } from 'vs/base/common/network';
 import { mnemonicButtonLabel } from 'vs/base/common/labels';
-import { isWindows } from 'vs/base/common/platform';
+import { isWindows, isMacintosh } from 'vs/base/common/platform';
 import { ILogService } from 'vs/platform/log/common/log';
 
 export class WindowsService implements IWindowsService, IURLHandler, IDisposable {
@@ -39,6 +39,10 @@ export class WindowsService implements IWindowsService, IURLHandler, IDisposable
 	);
 
 	readonly onWindowBlur: Event<number> = filterEvent(fromNodeEventEmitter(app, 'browser-window-blur', (_, w: Electron.BrowserWindow) => w.id), id => !!this.windowsMainService.getWindowById(id));
+	readonly onWindowMaximize: Event<number> = filterEvent(fromNodeEventEmitter(app, 'browser-window-maximize', (_, w: Electron.BrowserWindow) => w.id), id => !!this.windowsMainService.getWindowById(id));
+	readonly onWindowUnmaximize: Event<number> = filterEvent(fromNodeEventEmitter(app, 'browser-window-unmaximize', (_, w: Electron.BrowserWindow) => w.id), id => !!this.windowsMainService.getWindowById(id));
+
+	readonly onRecentlyOpenedChange: Event<void> = this.historyService.onRecentlyOpenedChange;
 
 	constructor(
 		private sharedProcess: ISharedProcess,
@@ -129,7 +133,7 @@ export class WindowsService implements IWindowsService, IURLHandler, IDisposable
 
 		if (codeWindow) {
 			const contents = codeWindow.win.webContents;
-			if (codeWindow.hasHiddenTitleBarStyle() && !codeWindow.win.isFullScreen() && !contents.isDevToolsOpened()) {
+			if (isMacintosh && codeWindow.hasHiddenTitleBarStyle() && !codeWindow.win.isFullScreen() && !contents.isDevToolsOpened()) {
 				contents.openDevTools({ mode: 'undocked' }); // due to https://github.com/electron/electron/issues/3647
 			} else {
 				contents.toggleDevTools();
@@ -139,7 +143,7 @@ export class WindowsService implements IWindowsService, IURLHandler, IDisposable
 		return TPromise.as(null);
 	}
 
-	updateTouchBar(windowId: number, items: ICommandAction[][]): TPromise<void> {
+	updateTouchBar(windowId: number, items: ISerializableCommandAction[][]): TPromise<void> {
 		this.logService.trace('windowsService#updateTouchBar', windowId);
 		const codeWindow = this.windowsMainService.getWindowById(windowId);
 
@@ -338,6 +342,17 @@ export class WindowsService implements IWindowsService, IURLHandler, IDisposable
 		return TPromise.as(null);
 	}
 
+	minimizeWindow(windowId: number): TPromise<void> {
+		this.logService.trace('windowsService#minimizeWindow', windowId);
+		const codeWindow = this.windowsMainService.getWindowById(windowId);
+
+		if (codeWindow) {
+			codeWindow.win.minimize();
+		}
+
+		return TPromise.as(null);
+	}
+
 	onWindowTitleDoubleClick(windowId: number): TPromise<void> {
 		this.logService.trace('windowsService#onWindowTitleDoubleClick', windowId);
 		const codeWindow = this.windowsMainService.getWindowById(windowId);
@@ -455,6 +470,29 @@ export class WindowsService implements IWindowsService, IURLHandler, IDisposable
 		return TPromise.as(null);
 	}
 
+	openAccessibilityOptions(): TPromise<void> {
+		this.logService.trace('windowsService#openAccessibilityOptions');
+
+		const win = new BrowserWindow({
+			alwaysOnTop: true,
+			skipTaskbar: true,
+			resizable: false,
+			width: 450,
+			height: 300,
+			show: true,
+			title: nls.localize('accessibilityOptionsWindowTitle', "Accessibility Options"),
+			webPreferences: {
+				disableBlinkFeatures: 'Auxclick'
+			}
+		});
+
+		win.setMenuBarVisibility(false);
+
+		win.loadURL('chrome://accessibility');
+
+		return TPromise.as(null);
+	}
+
 	openAboutDialog(): TPromise<void> {
 		this.logService.trace('windowsService#openAboutDialog');
 		const lastActiveWindow = this.windowsMainService.getFocusedWindow() || this.windowsMainService.getLastActiveWindow();
@@ -492,21 +530,22 @@ export class WindowsService implements IWindowsService, IURLHandler, IDisposable
 		return TPromise.as(null);
 	}
 
-	async handleURL(uri: URI): TPromise<boolean> {
+	handleURL(uri: URI): TPromise<boolean> {
 		// Catch file URLs
 		if (uri.authority === Schemas.file && !!uri.path) {
-			return this.openFileForURI(URI.file(uri.fsPath));
+			this.openFileForURI(URI.file(uri.fsPath));
+			return TPromise.as(true);
 		}
 
-		return false;
+		return TPromise.wrap(false);
 	}
 
-	private async openFileForURI(uri: URI): TPromise<boolean> {
+	private openFileForURI(uri: URI): TPromise<boolean> {
 		const cli = assign(Object.create(null), this.environmentService.args, { goto: true });
 		const pathsToOpen = [uri.fsPath];
 
 		this.windowsMainService.open({ context: OpenContext.API, cli, pathsToOpen });
-		return true;
+		return TPromise.wrap(true);
 	}
 
 	dispose(): void {

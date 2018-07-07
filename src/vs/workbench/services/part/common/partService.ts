@@ -15,7 +15,8 @@ export enum Parts {
 	EDITOR_PART,
 	STATUSBAR_PART,
 	TITLEBAR_PART,
-	TOOLBAR_PART
+	TOOLBAR_PART,
+	MENUBAR_PART
 }
 
 export enum Position {
@@ -43,6 +44,11 @@ export interface IPartService {
 	 * Emits when the visibility of the title bar changes.
 	 */
 	onTitleBarVisibilityChange: Event<void>;
+
+	/**
+	 * Emits when the visibility of the menubar changes.
+	 */
+	onMenubarVisibilityChange: Event<IDimension>;
 
 	/**
 	 * Emits when the editor part's layout changes.

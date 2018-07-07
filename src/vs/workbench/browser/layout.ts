@@ -16,6 +16,7 @@ import { IContextViewService } from 'vs/platform/contextview/browser/contextView
 import { Disposable } from 'vs/base/common/lifecycle';
 import { getZoomFactor } from 'vs/base/browser/browser';
 import { IThemeService } from 'vs/platform/theme/common/themeService';
+import { isMacintosh } from 'vs/base/common/platform';
 import { memoize } from 'vs/base/common/decorators';
 import { NotificationsCenter } from 'vs/workbench/browser/parts/notifications/notificationsCenter';
 import { NotificationsToasts } from 'vs/workbench/browser/parts/notifications/notificationsToasts';
@@ -28,8 +29,9 @@ import { SidebarPart } from 'vs/workbench/browser/parts/sidebar/sidebarPart';
 import { PanelPart } from 'vs/workbench/browser/parts/panel/panelPart';
 import { StatusbarPart } from 'vs/workbench/browser/parts/statusbar/statusbarPart';
 import { ToolbarPart } from 'vs/workbench/browser/parts/toolbar/toolbarPart';
+import { MenubarPart } from 'vs/workbench/browser/parts/menubar/menubarPart';
 
-const TITLE_BAR_HEIGHT = 22;
+const TITLE_BAR_HEIGHT = isMacintosh ? 22 : 30;
 const TOOLBAR_HEIGHT = 30;
 const STATUS_BAR_HEIGHT = 22;
 const ACTIVITY_BAR_WIDTH = 50;
@@ -65,6 +67,8 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 	private _sidebarWidth: number;
 	private sidebarHeight: number;
 	private titlebarHeight: number;
+	private menubarHeight: number;
+	private headingHeight: number;
 	private toolbarHeight: number;
 	private statusbarHeight: number;
 	private panelSizeBeforeMaximized: number;
@@ -79,6 +83,7 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 		private parts: {
 			titlebar: TitlebarPart,
 			toolbar: ToolbarPart,
+			menubar: MenubarPart,
 			activitybar: ActivitybarPart,
 			editor: EditorPart,
 			sidebar: SidebarPart,
@@ -218,13 +223,16 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 	}
 
 	@memoize
-	private get partLayoutInfo() {
+	public get partLayoutInfo() {
 		return {
 			titlebar: {
 				height: TITLE_BAR_HEIGHT
 			},
 			toolbar: {
 				height: TOOLBAR_HEIGHT
+			},
+			menubar: {
+				height: TITLE_BAR_HEIGHT
 			},
 			activitybar: {
 				width: ACTIVITY_BAR_WIDTH
@@ -318,7 +326,7 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 				if (newSashHeight + HIDE_PANEL_HEIGHT_THRESHOLD < this.partLayoutInfo.panel.minHeight) {
 					let dragCompensation = this.partLayoutInfo.panel.minHeight - HIDE_PANEL_HEIGHT_THRESHOLD;
 					promise = this.partService.setPanelHidden(true);
-					startY = Math.min(this.sidebarHeight - this.statusbarHeight - this.titlebarHeight - this.toolbarHeight, e.currentY + dragCompensation);
+					startY = Math.min(this.sidebarHeight - this.statusbarHeight - this.headingHeight - this.toolbarHeight, e.currentY + dragCompensation);
 					this.panelHeight = startPanelHeight; // when restoring panel, restore to the panel height we started from
 				}
 
@@ -420,6 +428,7 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 		const isActivityBarHidden = !this.partService.isVisible(Parts.ACTIVITYBAR_PART);
 		const isTitlebarHidden = !this.partService.isVisible(Parts.TITLEBAR_PART);
 		const isToolbarHidden = !this.partService.isVisible(Parts.TOOLBAR_PART);
+		const isMenubarHidden = !this.partService.isVisible(Parts.MENUBAR_PART);
 		const isPanelHidden = !this.partService.isVisible(Parts.PANEL_PART);
 		const isStatusbarHidden = !this.partService.isVisible(Parts.STATUSBAR_PART);
 		const isSidebarHidden = !this.partService.isVisible(Parts.SIDEBAR_PART);
@@ -434,8 +443,11 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 		this.statusbarHeight = isStatusbarHidden ? 0 : this.partLayoutInfo.statusbar.height;
 		this.titlebarHeight = isTitlebarHidden ? 0 : this.partLayoutInfo.titlebar.height / getZoomFactor(); // adjust for zoom prevention
 		this.toolbarHeight = isToolbarHidden ? 0 : this.partLayoutInfo.toolbar.height / getZoomFactor(); // adjust for zoom prevention
+		this.menubarHeight = isMenubarHidden ? 0 : this.partLayoutInfo.menubar.height / getZoomFactor(); // adjust for zoom prevention
+		this.headingHeight = Math.max(this.menubarHeight, this.titlebarHeight);
 
-		this.sidebarHeight = this.workbenchSize.height - this.statusbarHeight - this.titlebarHeight - this.toolbarHeight;
+		this.sidebarHeight = this.workbenchSize.height - this.statusbarHeight - this.titlebarHeight - this.headingHeight - this.toolbarHeight;
+
 		let sidebarSize = new Dimension(this.sidebarWidth, this.sidebarHeight);
 
 		// Activity Bar
@@ -580,6 +592,14 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 			show(toolbarContainer);
 		}
 
+		// Menubar
+		const menubarContainer = this.parts.menubar.getContainer();
+		if (isMenubarHidden) {
+			hide(menubarContainer);
+		} else {
+			show(menubarContainer);
+		}
+
 		// Editor Part and Panel part
 		const editorContainer = this.parts.editor.getContainer();
 		const panelContainer = this.parts.panel.getContainer();
@@ -588,19 +608,19 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 
 		if (panelPosition === Position.BOTTOM) {
 			if (sidebarPosition === Position.LEFT) {
-				position(editorContainer, this.titlebarHeight + this.toolbarHeight, 0, this.statusbarHeight + panelDimension.height, sidebarSize.width + activityBarSize.width);
-				position(panelContainer, editorSize.height + this.titlebarHeight + this.toolbarHeight, 0, this.statusbarHeight, sidebarSize.width + activityBarSize.width);
+				position(editorContainer, this.headingHeight + this.toolbarHeight, 0, this.statusbarHeight + panelDimension.height, sidebarSize.width + activityBarSize.width);
+				position(panelContainer, editorSize.height + this.headingHeight + this.toolbarHeight, 0, this.statusbarHeight, sidebarSize.width + activityBarSize.width);
 			} else {
-				position(editorContainer, this.titlebarHeight + this.toolbarHeight, sidebarSize.width, this.statusbarHeight + panelDimension.height, 0);
-				position(panelContainer, editorSize.height + this.titlebarHeight + this.toolbarHeight, sidebarSize.width, this.statusbarHeight, 0);
+				position(editorContainer, this.headingHeight + this.toolbarHeight, sidebarSize.width, this.statusbarHeight + panelDimension.height, 0);
+				position(panelContainer, editorSize.height + this.headingHeight + this.toolbarHeight, sidebarSize.width, this.statusbarHeight, 0);
 			}
 		} else {
 			if (sidebarPosition === Position.LEFT) {
-				position(editorContainer, this.titlebarHeight + this.toolbarHeight, panelDimension.width, this.statusbarHeight, sidebarSize.width + activityBarSize.width);
-				position(panelContainer, this.titlebarHeight + this.toolbarHeight, 0, this.statusbarHeight, sidebarSize.width + activityBarSize.width + editorSize.width);
+				position(editorContainer, this.headingHeight + this.toolbarHeight, panelDimension.width, this.statusbarHeight, sidebarSize.width + activityBarSize.width);
+				position(panelContainer, this.headingHeight + this.toolbarHeight, 0, this.statusbarHeight, sidebarSize.width + activityBarSize.width + editorSize.width);
 			} else {
-				position(editorContainer, this.titlebarHeight + this.toolbarHeight, sidebarSize.width + activityBarSize.width + panelWidth, this.statusbarHeight, 0);
-				position(panelContainer, this.titlebarHeight + this.toolbarHeight, sidebarSize.width + activityBarSize.width, this.statusbarHeight, editorSize.width);
+				position(editorContainer, this.headingHeight + this.toolbarHeight, sidebarSize.width + activityBarSize.width + panelWidth, this.statusbarHeight, 0);
+				position(panelContainer, this.headingHeight + this.toolbarHeight, sidebarSize.width + activityBarSize.width, this.statusbarHeight, editorSize.width);
 			}
 		}
 
@@ -609,10 +629,10 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 		size(activitybarContainer, null, activityBarSize.height);
 		if (sidebarPosition === Position.LEFT) {
 			this.parts.activitybar.getContainer().style.right = '';
-			position(activitybarContainer, this.titlebarHeight + this.toolbarHeight, null, 0, 0);
+			position(activitybarContainer, this.headingHeight + this.toolbarHeight, null, 0, 0);
 		} else {
 			this.parts.activitybar.getContainer().style.left = '';
-			position(activitybarContainer, this.titlebarHeight + this.toolbarHeight, 0, 0, null);
+			position(activitybarContainer, this.headingHeight + this.toolbarHeight, 0, 0, null);
 		}
 		if (isActivityBarHidden) {
 			hide(activitybarContainer);
@@ -625,9 +645,9 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 		size(sidebarContainer, sidebarSize.width, sidebarSize.height);
 		const editorAndPanelWidth = editorSize.width + (panelPosition === Position.RIGHT ? panelWidth : 0);
 		if (sidebarPosition === Position.LEFT) {
-			position(sidebarContainer, this.titlebarHeight + this.toolbarHeight, editorAndPanelWidth, this.statusbarHeight, activityBarSize.width);
+			position(sidebarContainer, this.headingHeight + this.toolbarHeight, editorAndPanelWidth, this.statusbarHeight, activityBarSize.width);
 		} else {
-			position(sidebarContainer, this.titlebarHeight + this.toolbarHeight, activityBarSize.width, this.statusbarHeight, editorAndPanelWidth);
+			position(sidebarContainer, this.headingHeight + this.toolbarHeight, activityBarSize.width, this.statusbarHeight, editorAndPanelWidth);
 		}
 
 		// Statusbar Part
@@ -664,6 +684,7 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 		// Propagate to Part Layouts
 		this.parts.titlebar.layout(new Dimension(this.workbenchSize.width, this.titlebarHeight));
 		this.parts.toolbar.layout(new Dimension(this.workbenchSize.width, this.toolbarHeight));
+		this.parts.menubar.layout(new Dimension(this.workbenchSize.width, this.menubarHeight));
 		this.parts.editor.layout(new Dimension(editorSize.width, editorSize.height));
 		this.parts.sidebar.layout(sidebarSize);
 		this.parts.panel.layout(panelDimension);
@@ -674,7 +695,7 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 	}
 
 	getVerticalSashTop(sash: Sash): number {
-		return this.titlebarHeight + this.toolbarHeight;
+		return this.headingHeight + this.toolbarHeight;
 	}
 
 	getVerticalSashLeft(sash: Sash): number {
@@ -701,7 +722,7 @@ export class WorkbenchLayout extends Disposable implements IVerticalSashLayoutPr
 
 	getHorizontalSashTop(sash: Sash): number {
 		const offset = 2; // Horizontal sash should be a bit lower than the editor area, thus add 2px #5524
-		return offset + (this.partService.isVisible(Parts.PANEL_PART) ? this.sidebarHeight - this.panelHeight + this.titlebarHeight + this.toolbarHeight : this.sidebarHeight + this.titlebarHeight + this.toolbarHeight);
+		return offset + (this.partService.isVisible(Parts.PANEL_PART) ? this.sidebarHeight - this.panelHeight + this.headingHeight + this.toolbarHeight : this.sidebarHeight + this.headingHeight + this.toolbarHeight);
 	}
 
 	getHorizontalSashLeft(sash: Sash): number {

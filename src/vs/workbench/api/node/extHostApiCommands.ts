@@ -10,7 +10,7 @@ import { IDisposable } from 'vs/base/common/lifecycle';
 import * as vscode from 'vscode';
 import * as typeConverters from 'vs/workbench/api/node/extHostTypeConverters';
 import * as types from 'vs/workbench/api/node/extHostTypes';
-import { IRawColorInfo } from 'vs/workbench/api/node/extHost.protocol';
+import { IRawColorInfo, WorkspaceEditDto } from 'vs/workbench/api/node/extHost.protocol';
 import { ISingleEditOperation } from 'vs/editor/common/model';
 import * as modes from 'vs/editor/common/modes';
 import * as search from 'vs/workbench/parts/search/common/search';
@@ -19,6 +19,7 @@ import { ExtHostCommands } from 'vs/workbench/api/node/extHostCommands';
 import { CustomCodeAction } from 'vs/workbench/api/node/extHostLanguageFeatures';
 import { ICommandsExecutor, PreviewHTMLAPICommand, OpenFolderAPICommand, DiffAPICommand, OpenAPICommand, RemoveFromRecentlyOpenedAPICommand, SetEditorLayoutAPICommand } from './apiCommands';
 import { EditorGroupLayout } from 'vs/workbench/services/group/common/editorGroupsService';
+import { isFalsyOrEmpty } from 'vs/base/common/arrays';
 
 export class ExtHostApiCommands {
 
@@ -344,7 +345,7 @@ export class ExtHostApiCommands {
 			position: position && typeConverters.Position.from(position),
 			newName
 		};
-		return this._commands.executeCommand<modes.WorkspaceEdit>('_executeDocumentRenameProvider', args).then(value => {
+		return this._commands.executeCommand<WorkspaceEditDto>('_executeDocumentRenameProvider', args).then(value => {
 			if (!value) {
 				return undefined;
 			}
@@ -411,15 +412,24 @@ export class ExtHostApiCommands {
 		});
 	}
 
-	private _executeDocumentSymbolProvider(resource: URI): Thenable<vscode.DocumentSymbol[]> {
+	private _executeDocumentSymbolProvider(resource: URI): Thenable<vscode.SymbolInformation[]> {
 		const args = {
 			resource
 		};
 		return this._commands.executeCommand<modes.DocumentSymbol[]>('_executeDocumentSymbolProvider', args).then(value => {
-			if (value && Array.isArray(value)) {
-				return value.map(typeConverters.DocumentSymbol.to);
+			if (isFalsyOrEmpty(value)) {
+				return undefined;
 			}
-			return undefined;
+			let result: vscode.SymbolInformation[] = [];
+			for (const symbol of value) {
+				result.push(new types.SymbolInformation(
+					symbol.name,
+					typeConverters.SymbolKind.to(symbol.kind),
+					symbol.containerName,
+					new types.Location(resource, typeConverters.Range.to(symbol.range))
+				));
+			}
+			return result;
 		});
 	}
 

@@ -14,6 +14,7 @@ import * as languageIds from '../utils/languageModeIds';
 import * as typeConverters from '../utils/typeConverters';
 import FileConfigurationManager from './fileConfigurationManager';
 import * as fileSchemes from '../utils/fileSchemes';
+import { escapeRegExp } from '../utils/regexp';
 
 const localize = nls.loadMessageBundle();
 
@@ -33,8 +34,8 @@ export class UpdateImportsOnFileRenameHandler {
 		private readonly fileConfigurationManager: FileConfigurationManager,
 		private readonly _handles: (uri: vscode.Uri) => Promise<boolean>,
 	) {
-		this._onDidRenameSub = vscode.workspace.onDidRenameResource(e => {
-			this.doRename(e.oldResource, e.newResource);
+		this._onDidRenameSub = vscode.workspace.onDidRenameFile(e => {
+			this.doRename(e.oldUri, e.newUri);
 		});
 	}
 
@@ -81,6 +82,16 @@ export class UpdateImportsOnFileRenameHandler {
 		// Make sure TS knows about file
 		this.client.bufferSyncSupport.closeResource(targetResource);
 		this.client.bufferSyncSupport.openTextDocument(document);
+
+		// Workaround for https://github.com/Microsoft/vscode/issues/52967
+		// Never attempt to update import paths if the file does not contain something the looks like an export
+		const tree = await this.client.execute('navtree', { file: newFile });
+		const hasExport = (node: Proto.NavigationTree): boolean => {
+			return !!node.kindModifiers.match(/\bexport\b/g) || !!(node.childItems && node.childItems.some(hasExport));
+		};
+		if (!tree.body || !tree.body || !hasExport(tree.body)) {
+			return;
+		}
 
 		const edits = await this.getEditsForFileRename(targetFile, document, oldFile, newFile);
 		if (!edits || !edits.size) {
@@ -200,7 +211,7 @@ export class UpdateImportsOnFileRenameHandler {
 			return files[0];
 		}
 
-		return this._handles(resource) ? resource : undefined;
+		return (await this._handles(resource)) ? resource : undefined;
 	}
 
 	private async getEditsForFileRename(
@@ -222,29 +233,55 @@ export class UpdateImportsOnFileRenameHandler {
 			return;
 		}
 
-		return typeConverters.WorkspaceEdit.fromFromFileCodeEdits(this.client, response.body.map((edit: Proto.FileCodeEdits) => this.fixEdit(edit, isDirectoryRename)));
+		const edits: Proto.FileCodeEdits[] = [];
+		for (const edit of response.body) {
+			// Workaround for https://github.com/Microsoft/vscode/issues/52675
+			if ((edit as Proto.FileCodeEdits).fileName.match(/[\/\\]node_modules[\/\\]/gi)) {
+				continue;
+			}
+			for (const change of (edit as Proto.FileCodeEdits).textChanges) {
+				if (change.newText.match(/\/node_modules\//gi)) {
+					continue;
+				}
+			}
+
+			edits.push(await this.fixEdit(edit, isDirectoryRename, oldFile, newFile));
+		}
+		return typeConverters.WorkspaceEdit.fromFileCodeEdits(this.client, edits);
 	}
 
-	private fixEdit(
+	private async fixEdit(
 		edit: Proto.FileCodeEdits,
-		isDirectoryRename: boolean
-	): Proto.FileCodeEdits {
+		isDirectoryRename: boolean,
+		oldFile: string,
+		newFile: string,
+	): Promise<Proto.FileCodeEdits> {
 		if (!isDirectoryRename || this.client.apiVersion.gte(API.v300)) {
 			return edit;
 		}
 
+		const document = await vscode.workspace.openTextDocument(edit.fileName);
+		const oldFileRe = new RegExp('/' + escapeRegExp(path.basename(oldFile)) + '/');
+
 		// Workaround for https://github.com/Microsoft/TypeScript/issues/24968
 		const textChanges = edit.textChanges.map((change): Proto.CodeEdit => {
-			const match = change.newText.match(/\/[^\/]+$/g);
+			const existingText = document.getText(typeConverters.Range.fromTextSpan(change));
+			const existingMatch = existingText.match(oldFileRe);
+			if (!existingMatch) {
+				return change;
+			}
+
+			const match = new RegExp('/' + escapeRegExp(path.basename(newFile)) + '/(.+)$', 'g').exec(change.newText);
 			if (!match) {
 				return change;
 			}
+
 			return {
-				newText: change.newText.slice(0, -match[0].length),
+				newText: change.newText.slice(0, -match[1].length),
 				start: change.start,
 				end: {
 					line: change.end.line,
-					offset: change.end.offset - match[0].length
+					offset: change.end.offset - match[1].length
 				}
 			};
 		});

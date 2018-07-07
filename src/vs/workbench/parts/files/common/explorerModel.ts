@@ -25,7 +25,7 @@ export class Model {
 
 	constructor(@IWorkspaceContextService private contextService: IWorkspaceContextService) {
 		const setRoots = () => this._roots = this.contextService.getWorkspace().folders
-			.map(folder => new ExplorerItem(folder.uri, undefined, false, true, folder.name));
+			.map(folder => new ExplorerItem(folder.uri, undefined, false, false, true, folder.name));
 		this._listener = this.contextService.onDidChangeWorkspaceFolders(() => setRoots());
 		setRoots();
 	}
@@ -72,18 +72,22 @@ export class ExplorerItem {
 	public etag: string;
 	private _isDirectory: boolean;
 	private _isSymbolicLink: boolean;
+	private _isReadonly: boolean;
 	private children: Map<string, ExplorerItem>;
+	private _isError: boolean;
 	public parent: ExplorerItem;
 
 	public isDirectoryResolved: boolean;
 
-	constructor(resource: URI, public root: ExplorerItem, isSymbolicLink?: boolean, isDirectory?: boolean, name: string = resources.basenameOrAuthority(resource), mtime?: number, etag?: string) {
+	constructor(resource: URI, public root: ExplorerItem, isSymbolicLink?: boolean, isReadonly?: boolean, isDirectory?: boolean, name: string = resources.basenameOrAuthority(resource), mtime?: number, etag?: string, isError?: boolean) {
 		this.resource = resource;
 		this._name = name;
 		this.isDirectory = !!isDirectory;
 		this._isSymbolicLink = !!isSymbolicLink;
+		this._isReadonly = !!isReadonly;
 		this.etag = etag;
 		this.mtime = mtime;
+		this._isError = !!isError;
 
 		if (!this.root) {
 			this.root = this;
@@ -100,6 +104,14 @@ export class ExplorerItem {
 		return this._isDirectory;
 	}
 
+	public get isReadonly(): boolean {
+		return this._isReadonly;
+	}
+
+	public get isError(): boolean {
+		return this._isError;
+	}
+
 	public set isDirectory(value: boolean) {
 		if (value !== this._isDirectory) {
 			this._isDirectory = value;
@@ -110,10 +122,6 @@ export class ExplorerItem {
 			}
 		}
 
-	}
-
-	public get nonexistentRoot(): boolean {
-		return this.isRoot && !this.isDirectoryResolved && this.isDirectory;
 	}
 
 	public get name(): string {
@@ -139,8 +147,8 @@ export class ExplorerItem {
 		return this === this.root;
 	}
 
-	public static create(raw: IFileStat, root: ExplorerItem, resolveTo?: URI[]): ExplorerItem {
-		const stat = new ExplorerItem(raw.resource, root, raw.isSymbolicLink, raw.isDirectory, raw.name, raw.mtime, raw.etag);
+	public static create(raw: IFileStat, root: ExplorerItem, resolveTo?: URI[], isError = false): ExplorerItem {
+		const stat = new ExplorerItem(raw.resource, root, raw.isSymbolicLink, raw.isReadonly, raw.isDirectory, raw.name, raw.mtime, raw.etag, isError);
 
 		// Recursively add children if present
 		if (stat.isDirectory) {
@@ -188,6 +196,8 @@ export class ExplorerItem {
 		local.mtime = disk.mtime;
 		local.isDirectoryResolved = disk.isDirectoryResolved;
 		local._isSymbolicLink = disk.isSymbolicLink;
+		local._isReadonly = disk.isReadonly;
+		local._isError = disk.isError;
 
 		// Merge Children if resolved
 		if (mergingDirectories && disk.isDirectoryResolved) {
@@ -395,7 +405,7 @@ export class NewStatPlaceholder extends ExplorerItem {
 	private directoryPlaceholder: boolean;
 
 	constructor(isDirectory: boolean, root: ExplorerItem) {
-		super(URI.file(''), root, false, false, NewStatPlaceholder.NAME);
+		super(URI.file(''), root, false, false, false, NewStatPlaceholder.NAME);
 
 		this.id = NewStatPlaceholder.ID++;
 		this.isDirectoryResolved = isDirectory;

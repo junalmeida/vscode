@@ -255,7 +255,7 @@ export class CollapseDeepestExpandedLevelAction extends Action {
 export class ClearSearchResultsAction extends Action {
 
 	static readonly ID: string = 'search.action.clearSearchResults';
-	static LABEL: string = nls.localize('ClearSearchResultsAction.label', "Clear");
+	static LABEL: string = nls.localize('ClearSearchResultsAction.label', "Clear Search Results");
 
 	constructor(id: string, label: string,
 		@IViewletService private viewletService: IViewletService,
@@ -492,14 +492,15 @@ export class ReplaceAllInFolderAction extends AbstractSearchAndReplaceAction {
 		super(Constants.ReplaceAllInFolderActionId, appendKeyBindingLabel(ReplaceAllInFolderAction.LABEL, keyBindingService.lookupKeybinding(Constants.ReplaceAllInFolderActionId), keyBindingService), 'action-replace-all');
 	}
 
-	public async run(): TPromise<any> {
+	public run(): TPromise<any> {
 		let nextFocusElement = this.getElementToFocusAfterRemoved(this.viewer, this.folderMatch);
-		await this.folderMatch.replaceAll();
-
-		if (nextFocusElement) {
-			this.viewer.setFocus(nextFocusElement);
-		}
-		this.viewer.domFocus();
+		return this.folderMatch.replaceAll()
+			.then(() => {
+				if (nextFocusElement) {
+					this.viewer.setFocus(nextFocusElement);
+				}
+				this.viewer.domFocus();
+			});
 	}
 }
 

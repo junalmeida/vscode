@@ -66,7 +66,7 @@ registry.registerWorkbenchAction(new SyncActionDescriptor(QuickOpenTermAction, Q
 const actionBarRegistry = Registry.as<IActionBarRegistry>(ActionBarExtensions.Actionbar);
 actionBarRegistry.registerActionBarContributor(Scope.VIEWER, QuickOpenActionTermContributor);
 
-let configurationRegistry = Registry.as<IConfigurationRegistry>(Extensions.Configuration);
+const configurationRegistry = Registry.as<IConfigurationRegistry>(Extensions.Configuration);
 configurationRegistry.registerConfiguration({
 	'id': 'terminal',
 	'order': 100,
@@ -117,6 +117,11 @@ configurationRegistry.registerConfiguration({
 		},
 		'terminal.integrated.macOptionIsMeta': {
 			'description': nls.localize('terminal.integrated.macOptionIsMeta', "Treat the option key as the meta key in the terminal on macOS."),
+			'type': 'boolean',
+			'default': false
+		},
+		'terminal.integrated.macOptionClickForcesSelection': {
+			'description': nls.localize('terminal.integrated.macOptionClickForcesSelection', "Whether to force selection when when using option+click on macOS, this will force a regular (line) selection and disallow the use of column selection mode. This enables copying and pasting using the regular terminal selection when in tmux mouse mode for example."),
 			'type': 'boolean',
 			'default': false
 		},
@@ -347,7 +352,7 @@ configurationRegistry.registerConfiguration({
 			'default': false
 		},
 		'terminal.integrated.experimentalTextureCachingStrategy': {
-			'description': nls.localize('terminal.integrated.experimentalTextureCachingStrategy', "Controls how the terminal stores glyph textures. Changes to this setting will only apply to new terminals."),
+			'description': nls.localize('terminal.integrated.experimentalTextureCachingStrategy', "Controls how the terminal stores glyph textures. `static` is the default and uses a fixed texture to draw the characters from. `dynamic` will draw the characters to the texture as they are needed, this should boost overall performance at the cost of slightly increased draw time the first time a character is drawn. `dynamic` will eventually become the default and this setting will be removed. Changes to this setting will only apply to new terminals."),
 			'type': 'string',
 			'enum': ['static', 'dynamic'],
 			'default': 'static'
@@ -368,7 +373,7 @@ registerSingleton(ITerminalService, TerminalService);
 
 // On mac cmd+` is reserved to cycle between windows, that's why the keybindings use WinCtrl
 const category = nls.localize('terminalCategory', "Terminal");
-let actionRegistry = Registry.as<IWorkbenchActionRegistry>(ActionExtensions.WorkbenchActions);
+const actionRegistry = Registry.as<IWorkbenchActionRegistry>(ActionExtensions.WorkbenchActions);
 actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(KillTerminalAction, KillTerminalAction.ID, KillTerminalAction.LABEL), 'Terminal: Kill the Active Terminal Instance', category);
 actionRegistry.registerWorkbenchAction(new SyncActionDescriptor(CopyTerminalSelectionAction, CopyTerminalSelectionAction.ID, CopyTerminalSelectionAction.LABEL, {
 	primary: KeyMod.CtrlCmd | KeyCode.KEY_C,

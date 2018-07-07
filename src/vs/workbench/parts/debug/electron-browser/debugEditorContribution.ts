@@ -21,12 +21,12 @@ import { DEFAULT_WORD_REGEXP } from 'vs/editor/common/model/wordHelper';
 import { ICodeEditor, IEditorMouseEvent, MouseTargetType } from 'vs/editor/browser/editorBrowser';
 import { registerEditorContribution } from 'vs/editor/browser/editorExtensions';
 import { IDecorationOptions } from 'vs/editor/common/editorCommon';
-import { IModelDecorationOptions, IModelDeltaDecoration, TrackedRangeStickiness } from 'vs/editor/common/model';
+import { IModelDecorationOptions, IModelDeltaDecoration, TrackedRangeStickiness, ITextModel } from 'vs/editor/common/model';
 import { ICodeEditorService } from 'vs/editor/browser/services/codeEditorService';
 import { Range } from 'vs/editor/common/core/range';
 import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
 import { ITelemetryService } from 'vs/platform/telemetry/common/telemetry';
-import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
+import { IConfigurationService, IConfigurationOverrides } from 'vs/platform/configuration/common/configuration';
 import { ICommandService } from 'vs/platform/commands/common/commands';
 import { IContextKeyService, IContextKey } from 'vs/platform/contextkey/common/contextkey';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
@@ -46,6 +46,7 @@ import { ContextSubMenu } from 'vs/base/browser/contextmenu';
 import { memoize } from 'vs/base/common/decorators';
 import { IDialogService } from 'vs/platform/dialogs/common/dialogs';
 import { getHover } from 'vs/editor/contrib/hover/getHover';
+import { IEditorHoverOptions } from 'vs/editor/common/config/editorOptions';
 
 const HOVER_DELAY = 300;
 const LAUNCH_JSON_REGEX = /launch\.json$/;
@@ -262,7 +263,7 @@ export class DebugEditorContribution implements IDebugEditorContribution {
 		this.toDispose.push(this.editor.onDidChangeModel(() => {
 			const stackFrame = this.debugService.getViewModel().focusedStackFrame;
 			const model = this.editor.getModel();
-			this.editor.updateOptions({ hover: !stackFrame || !model || model.uri.toString() !== stackFrame.source.uri.toString() });
+			this._applyHoverConfiguration(model, stackFrame);
 			this.closeBreakpointWidget();
 			this.toggleExceptionWidget();
 			this.hideHoverWidget();
@@ -276,6 +277,32 @@ export class DebugEditorContribution implements IDebugEditorContribution {
 				this.toggleExceptionWidget();
 			}
 		}));
+	}
+
+	private _applyHoverConfiguration(model: ITextModel, stackFrame: IStackFrame): void {
+		if (stackFrame && model && model.uri.toString() === stackFrame.source.uri.toString()) {
+			this.editor.updateOptions({
+				hover: {
+					enabled: !stackFrame || !model || model.uri.toString() !== stackFrame.source.uri.toString()
+				}
+			});
+		} else {
+			let overrides: IConfigurationOverrides;
+			if (model) {
+				overrides = {
+					resource: model.uri,
+					overrideIdentifier: model.getLanguageIdentifier().language
+				};
+			}
+			const defaultConfiguration = this.configurationService.getValue<IEditorHoverOptions>('editor.hover', overrides);
+			this.editor.updateOptions({
+				hover: {
+					enabled: defaultConfiguration.enabled,
+					delay: defaultConfiguration.delay,
+					sticky: defaultConfiguration.sticky
+				}
+			});
+		}
 	}
 
 	public getId(): string {
@@ -323,11 +350,10 @@ export class DebugEditorContribution implements IDebugEditorContribution {
 
 	private onFocusStackFrame(sf: IStackFrame): void {
 		const model = this.editor.getModel();
+		this._applyHoverConfiguration(model, sf);
 		if (model && sf && sf.source.uri.toString() === model.uri.toString()) {
-			this.editor.updateOptions({ hover: false });
 			this.toggleExceptionWidget();
 		} else {
-			this.editor.updateOptions({ hover: true });
 			this.hideHoverWidget();
 		}
 

@@ -16,10 +16,14 @@ export class ExtensionManagementServerService implements IExtensionManagementSer
 	constructor(
 		localExtensionManagementService: IExtensionManagementService
 	) {
-		this.extensionManagementServers = [{ extensionManagementService: localExtensionManagementService, location: URI.from({ scheme: 'vscode-local', authority: 'local' }) }];
+		this.extensionManagementServers = [{ extensionManagementService: localExtensionManagementService, location: URI.from({ scheme: Schemas.file }) }];
 	}
 
 	getExtensionManagementServer(location: URI): IExtensionManagementServer {
+		return this.extensionManagementServers[0];
+	}
+
+	getDefaultExtensionManagementServer(): IExtensionManagementServer {
 		return this.extensionManagementServers[0];
 	}
 }
@@ -37,7 +41,11 @@ export class SingleServerExtensionManagementServerService implements IExtensionM
 	}
 
 	getExtensionManagementServer(location: URI): IExtensionManagementServer {
-		location = location.scheme === Schemas.file ? URI.from({ scheme: 'vscode-local', authority: 'local' }) : location;
+		location = location.scheme === Schemas.file ? URI.from({ scheme: Schemas.file }) : location;
 		return this.extensionManagementServers.filter(server => location.authority === server.location.authority)[0];
+	}
+
+	getDefaultExtensionManagementServer(): IExtensionManagementServer {
+		return this.extensionManagementServers[0];
 	}
 }

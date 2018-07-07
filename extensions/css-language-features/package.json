@@ -243,6 +243,17 @@
             "default": "ignore",
             "description": "%css.lint.idSelector.desc%"
           },
+          "css.lint.unknownAtRules": {
+            "type": "string",
+            "scope": "resource",
+            "enum": [
+              "ignore",
+              "warning",
+              "error"
+            ],
+            "default": "warning",
+            "description": "%css.lint.unknownAtRules.desc%"
+          },
           "css.trace.server": {
             "type": "string",
             "scope": "window",
@@ -698,7 +709,7 @@
   "dependencies": {
     "vscode-languageclient": "^4.1.4",
     "vscode-languageserver-protocol-foldingprovider": "^2.0.1",
-    "vscode-nls": "^3.2.2"
+    "vscode-nls": "^3.2.4"
   },
   "devDependencies": {
     "@types/node": "7.0.43",

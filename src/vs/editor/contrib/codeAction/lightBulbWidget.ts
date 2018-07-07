@@ -53,7 +53,7 @@ export class LightBulbWidget implements IDisposable, IContentWidget {
 			const { lineHeight } = this._editor.getConfiguration();
 
 			let pad = Math.floor(lineHeight / 3);
-			if (this._position.position.lineNumber < this._model.position.lineNumber) {
+			if (this._position && this._position.position.lineNumber < this._model.position.lineNumber) {
 				pad += lineHeight;
 			}
 
@@ -116,7 +116,7 @@ export class LightBulbWidget implements IDisposable, IContentWidget {
 		this._model = value;
 
 		const selection = this._model.rangeOrSelection;
-		this._model.actions.done(fixes => {
+		this._model.actions.then(fixes => {
 			if (!token.isCancellationRequested && fixes && fixes.length > 0) {
 				if (selection.isEmpty() && fixes.every(fix => fix.kind && CodeActionKind.Refactor.contains(fix.kind))) {
 					this.hide();
@@ -126,7 +126,7 @@ export class LightBulbWidget implements IDisposable, IContentWidget {
 			} else {
 				this.hide();
 			}
-		}, err => {
+		}).catch(err => {
 			this.hide();
 		});
 	}

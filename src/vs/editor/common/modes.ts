@@ -293,7 +293,7 @@ export interface ISuggestion {
 	documentation?: string | IMarkdownString;
 	filterText?: string;
 	sortText?: string;
-	autoSelect?: boolean;
+	preselect?: boolean;
 	noAutoAccept?: boolean;
 	commitCharacters?: string[];
 	overwriteBefore?: number;
@@ -538,6 +538,13 @@ export interface Location {
  */
 export type Definition = Location | Location[];
 
+export interface DefinitionLink {
+	origin?: IRange;
+	uri: URI;
+	range: IRange;
+	selectionRange?: IRange;
+}
+
 /**
  * The definition provider interface defines the contract between extensions and
  * the [go to definition](https://code.visualstudio.com/docs/editor/editingevolved#_go-to-definition)
@@ -547,7 +554,7 @@ export interface DefinitionProvider {
 	/**
 	 * Provide the definition of the symbol at the given position and document.
 	 */
-	provideDefinition(model: model.ITextModel, position: Position, token: CancellationToken): Definition | Thenable<Definition>;
+	provideDefinition(model: model.ITextModel, position: Position, token: CancellationToken): DefinitionLink | Thenable<DefinitionLink[]>;
 }
 
 /**
@@ -648,8 +655,8 @@ export interface DocumentSymbol {
 	detail: string;
 	kind: SymbolKind;
 	containerName?: string;
-	fullRange: IRange;
-	identifierRange: IRange;
+	range: IRange;
+	selectionRange: IRange;
 	children?: DocumentSymbol[];
 }
 
@@ -899,6 +906,7 @@ export function isResourceTextEdit(thing: any): thing is ResourceTextEdit {
 export interface ResourceFileEdit {
 	oldUri: URI;
 	newUri: URI;
+	options: { overwrite?: boolean, ignoreIfExists?: boolean, recursive?: boolean };
 }
 
 export interface ResourceTextEdit {
